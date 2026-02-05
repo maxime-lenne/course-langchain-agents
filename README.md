@@ -1,7 +1,9 @@
 ![LangChain](img/langchain.jpeg)
 
-Ce projet propose une introduction pédagogique à l'utilisation des **agents LangChain** et de leurs **outils** pour orchestrer des tâches complexes via des LLMs.  
-Il est conçu pour comprendre comment les agents peuvent interagir avec des outils pour résoudre des problèmes de manière autonome.
+Ce projet propose une introduction pédagogique à l'utilisation des **agents LangChain**
+et de leurs **outils** pour orchestrer des tâches complexes via des LLMs.
+Il est conçu pour comprendre comment les agents peuvent interagir avec des outils
+pour résoudre des problèmes de manière autonome.
 
 ## Objectifs pédagogiques
 
@@ -21,7 +23,7 @@ Il est conçu pour comprendre comment les agents peuvent interagir avec des outi
 1. Clonez le dépôt :
 
    ```bash
-   git clone https://
+   git clone https://github.com/maxime-lenne/course-langchain-agents   
    cd agent-tools
    ```
 
