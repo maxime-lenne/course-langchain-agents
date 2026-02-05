@@ -43,7 +43,11 @@ pour résoudre des problèmes de manière autonome.
 4. Lancez le notebook :
 
    ```bash
-   jupyter notebook
+   # Version Jupyter
+   jupyter notebook langchain.ipynb
+
+   # Version Marimo (alternative moderne)
+   marimo run langchain_marimo.py
    ```
 
 ## Structure du projet

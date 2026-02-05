@@ -4,3 +4,4 @@ langchain-openai
 langchain-deepseek
 langchain-ollama
 duckduckgo-search
+marimo
