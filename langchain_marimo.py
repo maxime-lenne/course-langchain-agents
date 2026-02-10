@@ -59,16 +59,15 @@ def __():
     from datetime import datetime
     from dotenv import load_dotenv
     from langchain_ollama import ChatOllama
-    from langchain import hub
-    from langchain_core.tools import Tool
-    from langchain.agents import AgentExecutor, create_react_agent
-    from langchain.memory import ConversationBufferMemory
+    from langchain.tools import tool
+    from langchain.agents import create_agent
+    from langgraph.checkpoint.memory import MemorySaver
 
     load_dotenv(override=True)
     model = ChatOllama(model="llama3", temperature=0)
     return (
         os, datetime, load_dotenv, model, ChatOllama,
-        hub, Tool, AgentExecutor, create_react_agent, ConversationBufferMemory
+        tool, create_agent, MemorySaver
     )
 
 
@@ -92,19 +91,16 @@ def __(mo):
 
 
 @app.cell
-def __(datetime, Tool):
-    # Définition de l'outil : retourne l'heure actuelle
-    def get_current_time(*args, **kwargs):
+def __(datetime, tool):
+    # Définition de l'outil avec le décorateur @tool (API moderne LangChain v1).
+    # Le docstring sert de description, les type hints définissent le schéma.
+    @tool
+    def get_current_time() -> str:
+        """Use this tool to get the current time."""
         return datetime.now().strftime("%H:%M")
 
     # Liste des outils disponibles pour l'agent
-    tools = [
-        Tool(
-            name="CurrentTime",
-            func=get_current_time,
-            description="Use this tool to get the current time."
-        )
-    ]
+    tools = [get_current_time]
     return get_current_time, tools
 
 
@@ -115,28 +111,18 @@ def __(mo):
 
 
 @app.cell
-def __(model, mo, hub, tools, AgentExecutor, create_react_agent):
-    # Chargement du prompt ReAct depuis LangChain Hub
-    prompt_react = hub.pull("hwchase17/react")
-
-    # Création de l'agent ReAct
-    agent = create_react_agent(
-        llm=model,
-        tools=tools,
-        prompt=prompt_react
+def __(model, mo, tools, create_agent):
+    # Création de l'agent avec l'API moderne create_agent (LangChain v1).
+    # Plus besoin de prompt Hub, d'AgentExecutor ni de create_react_agent.
+    agent = create_agent(
+        model,
+        tools=tools
     )
 
-    # Encapsulation dans un exécuteur
-    executor = AgentExecutor.from_agent_and_tools(
-        agent=agent,
-        tools=tools,
-        verbose=False
-    )
-
-    # Lancement de l'agent
-    response = executor.invoke({"input": "Quelle heure est-il ?"})
-    mo.md(f"**Réponse de l'agent :** {response['output']}")
-    return prompt_react, agent, executor, response
+    # Invocation avec le format messages (API moderne).
+    response = agent.invoke({"messages": [{"role": "user", "content": "Quelle heure est-il ?"}]})
+    mo.md(f"**Réponse de l'agent :** {response['messages'][-1].content}")
+    return agent, response
 
 
 @app.cell
@@ -172,7 +158,8 @@ def __(mo):
         Un agent conversationnel conserve une **mémoire des échanges précédents**.
         Il peut adapter ses réponses en fonction du contexte accumulé dans la conversation.
 
-        LangChain permet d'ajouter une mémoire via `ConversationBufferMemory`.
+        Avec LangChain v1, la mémoire est gérée via `MemorySaver` (LangGraph).
+        Chaque session est identifiée par un `thread_id` dans la configuration.
         """
     )
     return
@@ -207,38 +194,30 @@ def __(mo, chat_input):
 
 
 @app.cell
-def __(model, mo, hub, tools, AgentExecutor, create_react_agent, ConversationBufferMemory, chat_input):
-    # Récupération du prompt conversationnel
-    prompt_chat = hub.pull("hwchase17/react-chat")
-
-    # Initialisation de la mémoire
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-    # Création de l'agent conversationnel
-    agent_chat = create_react_agent(
-        llm=model,
+def __(model, mo, tools, create_agent, MemorySaver, chat_input):
+    # Création de l'agent conversationnel avec MemorySaver (LangChain v1).
+    # Le checkpointer stocke l'historique de chaque session identifiée par thread_id.
+    conversational_agent = create_agent(
+        model,
         tools=tools,
-        prompt=prompt_chat
+        checkpointer=MemorySaver()
     )
-
-    executor_chat = AgentExecutor.from_agent_and_tools(
-        agent=agent_chat,
-        tools=tools,
-        memory=memory,
-        verbose=False
-    )
+    config_chat = {"configurable": {"thread_id": "marimo-session-1"}}
 
     # Traitement de la requête
     if chat_input.value:
-        response_chat = executor_chat.invoke({"input": chat_input.value})
+        response_chat = conversational_agent.invoke(
+            {"messages": [{"role": "user", "content": chat_input.value}]},
+            config_chat
+        )
         mo.md(f"""
         **Vous :** {chat_input.value}
 
-        **Agent :** {response_chat["output"]}
+        **Agent :** {response_chat["messages"][-1].content}
         """)
     else:
         mo.md("*Entrez une question pour commencer la conversation*")
-    return prompt_chat, memory, agent_chat, executor_chat
+    return conversational_agent, config_chat
 
 
 @app.cell
@@ -248,7 +227,7 @@ def __(mo):
         ## Exercice 2
 
         Reprenez l'exercice de conversion de température et ajoutez un aspect conversationnel
-        avec `ConversationBufferMemory`.
+        avec `MemorySaver` et un `thread_id`.
 
         L'agent doit pouvoir se souvenir des conversions précédentes.
         """
